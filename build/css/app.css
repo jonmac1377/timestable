@@ -1,0 +1,16 @@
+
+.Part1 input[type=checkbox]{
+   display:none;
+}
+
+.answer-button{
+    margin:0.25em;
+}
+
+.table-select__label{
+    margin:0.25em;    
+}
+
+input[type=checkbox]:checked ~ .table-select__label {
+    background-color:black
+}
