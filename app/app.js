@@ -1,6 +1,7 @@
 const React=require("react");
 const Page1=require("./Page1");
 const Page2=require("./Page2");
+const Game=require("./Game");
 
 
 class App extends React.Component{
@@ -21,6 +22,7 @@ class App extends React.Component{
     }
 
     render(){
+        return <Game/>;
         if(this.state.activePage==0)
         {            
             return <Page1 onSubmit={this.stirShite} />;
