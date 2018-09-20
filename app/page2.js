@@ -36,19 +36,22 @@ class Page2 extends React.Component {
 		});
 
 		this.randomise(list);
-		this.questionList.push(...list.slice(0,this.shite.numberOfQuestions));	
+		this.questionList.push(...list);//.slice(0,this.shite.numberOfQuestions));	
 	}
 
 	constructor(props) {
+		console.log(props);
 		super(props);
-		this.shite = props.shite;		
+		this.shite = props.shite;
+		this.shite.numberOfQuestions=this.shite.tables.length * 12;
 		this.generateQuestionList();		
 		
 		this.state={
 			activeQuestion:this.questionList.splice(0,1)[0],
 			activeQuestionIndex:1,
 			answeredQuestions:[],
-			score:0
+			score:0,
+			perfect:0
 		};
 
 		this.state.activeQuestion.begin = new Date();		
@@ -89,10 +92,14 @@ class Page2 extends React.Component {
 
 				const floor = Math.ceil(totalMs/1000) - 2;
 
-				const score = floor <= 1 ? 3 : floor >= 3 ? 1 : 2;
+				let score = floor <= 1 ? 3 : floor >= 3 ? 1 : 2;
 
-				console.log("score for ", totalMs," = ", score);
+				if(prev.activeQuestion.answers.filter(a=>a.wrong).length>0){
+					score = 1;
+				}
+
 				retVal.score = prev.score+=score;
+				retVal.perfect = prev.perfect+=score===3?1:0;
 			}
 
 			const [next] = this.questionList.splice(0,1);
@@ -107,22 +114,44 @@ class Page2 extends React.Component {
 		});
 	}
 
+	componentWillMount() {
+        document.addEventListener("keyup", this.handleKeyPress);
+    }
+
+
+    componentWillUnmount() {
+        document.removeEventListener("keyup", this.handleKeyPress);
+	}
+	
+	handleKeyPress=(event)=>{
+		const asNumber = +event.key;
+		if(this.state.activeQuestion && !isNaN(asNumber) && asNumber>0 && asNumber <5){
+			this.answerQuestion(this.state.activeQuestion.answers[asNumber-1])
+		}
+	}
+	nextStep(){
+		this.props.startGame(this.state);
+	}
+
 	render() {
 		if(this.state.activeQuestion){
 			return (
 				<div>
-					Score: {this.state.score}
+					Score: {this.state.score}, Perfect {this.state.perfect}
 					<br/>
 					You are on question {this.state.activeQuestionIndex} of {this.shite.numberOfQuestions}
 					<br/>
-					{this.state.activeQuestion.table} x {this.state.activeQuestion.multiplier} = 
+					<div className="poser">{this.state.activeQuestion.table} x {this.state.activeQuestion.multiplier}</div> 
 					{
-						this.state.activeQuestion.answers.map(a=> <button className={a.wrong?"btn-warning btn answer-button":"btn-primary btn answer-button"} onClick={evt=>{this.answerQuestion(a)}} >{a.answer}</button>)
+						this.state.activeQuestion.answers.map(a=> <button key={a.answer} className={a.wrong?"btn-warning btn answer-button":"btn-primary btn answer-button"} onClick={evt=>{this.answerQuestion(a)}} >{a.answer}</button>)
 					}				
 					
 				</div>);
 		}
-		return (<div>Goodbye</div>)
+		return (<div>Score: {this.state.score}, Perfect {this.state.perfect}
+		<br/>
+		<button onClick={(event)=>this.nextStep(event)} >Start shooting</button>
+		</div>)
 		
 	}
 }

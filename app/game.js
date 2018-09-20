@@ -5,10 +5,13 @@ class Game extends React.Component {
 
     constructor(props) {
         super(props);
-        this.bulletsLeft = 50;
+        this.missilesLeft = props.perfect * 3;
+        this.bulletsLeft = props.bullets - this.missilesLeft;
         this.bombsLeft = 10;
         this.dogbots = 0;
-        this.botmasters =0;
+        this.botmasters = 0;
+        this.escaped = 0;
+        this.rescued = 0;
         this.bulletCt = 0;
         this.aliens = [];
         this.guns = [];
@@ -20,7 +23,7 @@ class Game extends React.Component {
         this.height = 600;
         this.start = Date.now();
         this.explosions = [];
-        this.alienSpeed = 1 / 5;//pixels per millisecond
+        this.alienSpeed = 1 / 5;//pixels per millisecond??
         this.gunSize = { width: 30, height: 40 };
         this.alienSize = { width: 40, height: 40 };
         this.makeAlien = new makeAlien({ alienSpeed: this.alienSpeed, alienSize: this.alienSize.height, start: this.start });
@@ -28,14 +31,14 @@ class Game extends React.Component {
         this.pathLength = this.width * this.height / this.alienSize.width;
         this.lastFrame = 0;
         let cumulativeDelay = 0;
-        for (var c = 0; c < 10; c++) {
+        for (var c = 0; c < 12; c++) {
             const someAliens = this.makeAlien.gimmeSome(cumulativeDelay, 5);
 
             this.aliens.push(...someAliens);
-            cumulativeDelay += this.makeAlien.calculateTimeWidth(5) * 2;
+            cumulativeDelay += this.makeAlien.calculateTimeWidth(5) * 2.5;
         }
 
-        this.state = { sprites: [] };
+        this.state = { sprites: [], stats:this.makeScore() };
 
         this.makeGuns();
 
@@ -52,7 +55,8 @@ class Game extends React.Component {
                 className: "fas fa-air-freshener", id: ct + "gun",
                 centerLine: x + this.gunSize.width / 2,
                 style: {
-                    color: "#FF3399", top: y, left: x, fontSize: this.gunSize.height
+                    color: this.missilesLeft>0?"#FFCC44":"#FF4422",
+                     top: y, left: x, fontSize: this.gunSize.height
                 }
             });
         }
@@ -66,9 +70,9 @@ class Game extends React.Component {
 
             const now = Date.now();
 
-            this.aliens.forEach(a => this.calculatePosition(a, now));
+            this.aliens.forEach(a => this.calculatePosition(a, now));//use timelapsed
 
-            this.aliens = this.aliens.filter(a => !a.complete);
+            this.aliens = this.aliens.filter(a => !a.complete);            
 
             this.bullets.forEach(b => {
                 b.style = {
@@ -82,6 +86,15 @@ class Game extends React.Component {
             this.animateExplosions(timeElapsed);
 
             let sprites = this.aliens.filter(a => a.on);
+            if(sprites.length===0){
+                sprites.push({
+                    className: "fas fa-angry", id: "gameOver",
+                style: {
+                     //top: 100 + 50* Math.cos(now/300),left:100+ 70*Math.sin(now/200), fontSize: 150
+                     top:100,left:100,fontSize:125
+                }
+                });
+            }
             sprites.push(...this.guns);
 
             this.bullets = this.bullets.filter(b => b.style.top > 0);
@@ -91,7 +104,9 @@ class Game extends React.Component {
             sprites.push(...this.explosions);
 
             this.setState((prev, props) => {
-                return { sprites, bullets:this.bulletsLeft, dogbots:this.dogbots, botmasters:this.botmasters };
+                return { sprites, bulletsLeft: this.bulletsLeft,
+                    missilesLeft:this.missilesLeft, dogbots: this.dogbots, botmasters: this.botmasters,
+                stats:this.makeScore() };
             });
 
             this.lastFrame = timeElapsed;
@@ -100,7 +115,7 @@ class Game extends React.Component {
     }
 
     calculatePosition(alien, now) {
-        
+
         if (alien.complete || alien.startAt > now) {
             alien.on = false;
             return;
@@ -111,9 +126,11 @@ class Game extends React.Component {
         if (distanceTravelled > this.pathLength) {
             alien.complete = true;
             alien.on = false;
+            this.rescued+=alien.friend?1:0;
+            this.escaped+=alien.friend?0:1;
             return;
         }
-        
+
         alien.on = true;
 
         let opacity = (now - alien.startAt) / 1000;
@@ -131,24 +148,34 @@ class Game extends React.Component {
             top: y,
             left: x,
             fontSize: this.alienSize.height,
-            color: "#DD3322",
+            color: alien.className.indexOf("wolf") === -1 ? "#4f6" : "#DD3322",
             opacity: opacity
         };
     }
 
-    animateExplosions(timeElapsed){
-        this.explosions.forEach(e=>{
-            const newFontSize= e.style.fontSize+(timeElapsed - e.started) /50;
+    makeScore = ()=>{
+        return {
+            aliensShot:this.dogbots,
+            friendsShot:this.botmasters,
+            aliensInvaded:this.escaped,
+            friendsRescued:this.rescued,
+            score:10*this.dogbots -4 * this.botmasters - 6 * this.escaped + 20 * this.rescued
+        }
+    }
+
+    animateExplosions(timeElapsed) {
+        this.explosions.forEach(e => {
+            const newFontSize = e.style.fontSize + (timeElapsed - e.started) / 50;
             const rotate = (timeElapsed - e.started) / 5;
             e.style = {
-                fontSize:newFontSize,
-                top:e.startTop-(newFontSize-40)/2,
-                left:e.startLeft-(newFontSize-40)/2,
+                fontSize: newFontSize,
+                top: e.startTop - (newFontSize - 40) / 2,
+                left: e.startLeft - (newFontSize - 40) / 2,
                 color: "#FFAA00",
-                transform: "rotate("+rotate+"deg)"
+                transform: "rotate(" + rotate + "deg)"
             }
         });
-        this.explosions = this.explosions.filter(e=>timeElapsed - e.started < 400);
+        this.explosions = this.explosions.filter(e => timeElapsed - e.started < 400);
     }
 
     detectCollisions(timeElapsed) {
@@ -157,7 +184,7 @@ class Game extends React.Component {
         const gunHit = [];
         this.bullets.forEach(b => {
             this.aliens.some(a => {
-                if (!a.on || a.complete) {
+                if (!a.on || a.complete || (b.isMissile && a.friend)) {
                     return;
                 }
                 var rect1 = { x: a.style.left, y: a.style.top, width: this.alienSize.width, height: this.alienSize.height };
@@ -179,26 +206,26 @@ class Game extends React.Component {
 
         this.bullets = this.bullets.filter(b => !bulletHit.some(bh => bh === b));
         this.aliens = this.aliens.filter(a => !alienHit.some(ah => ah === a));
-        
+
         this.explosions.push(...alienHit.map(exp => {
-            
-            if(exp.className.indexOf("android")!==-1){                
+
+            if (exp.className.indexOf("android") !== -1) {
                 this.botmasters++;
             }
-            else{
+            else {
                 this.dogbots++;
             }
             //end use map reduce
             return {
                 style: {
-                    top: exp.style.top ,
+                    top: exp.style.top,
                     left: exp.style.left,
                     fontSize: this.alienSize.width,
                     color: "#FFAA00"
                 },
-                startTop:exp.style.top,
-                startLeft:exp.style.left,//hack 10
-                id: "explosion"+ this.bulletCt++,
+                startTop: exp.style.top,
+                startLeft: exp.style.left,//hack 10
+                id: "explosion" + this.bulletCt++,
                 started: timeElapsed,
                 className: "fas fa-haykal"
             };
@@ -222,25 +249,36 @@ class Game extends React.Component {
     }
 
     makeBullet = (gunNumber) => {//what's the problem with using a prototype method anyway
-    if(this.bulletsLeft<0){
-        return;
-    }    
-    const now = Date.now();
+        if (this.bulletsLeft < 1 && this.missilesLeft < 1) {
+            return;
+        }
+        const now = Date.now();
         if (this.lastBullet.gunNumber && now - this.lastBullet.gunNumber < 100) {
             return;
         }
-        this.bulletsLeft--;
+                
+        if(this.missilesLeft>0){
+            this.missilesLeft--;
+        }
+        else{
+            this.bulletsLeft--;
+        }
+        if(this.missilesLeft==0){
+            this.guns.length = 0;
+            this.makeGuns();
+        }
         this.lastBullet.gunNumber = now;
         let y = this.height - this.gunSize.height - this.bulletSize.height;
 
         this.bullets.push({
             id: this.bulletCt + "bullet",
             speed: 1,
+            isMissile:this.missilesLeft>0,
             className: "fas fa-arrow-up", style: {
                 top: this.height - this.gunSize.height - this.bulletSize.height,
                 left: this.guns[gunNumber - 1].centerLine - (this.bulletSize.width / 2),
                 fontSize: this.bulletSize.height,
-                color: "#3355ff"
+                color: this.missilesLeft>0?"#33ffff": "#33ff99"
             }
         });
 
@@ -250,13 +288,22 @@ class Game extends React.Component {
 
     render() {
         return (
-            <div className="playfield" tabIndex="0">
-                {this.state.sprites.map(s => {
-                    return (<i key={s.id} className={"playfield__sprite " + s.className} style={s.style}></i>);
-                })}
+            <div>
+                <div className="playfield" tabIndex="0">
+                    {this.state.sprites.map(s => {
+                        return (<i key={s.id} className={"playfield__sprite " + s.className} style={s.style}></i>);
+                    })}
+<div className="scores">
+<h1>{this.state.stats.score}</h1>
+<h2>{this.state.stats.aliensShot} aliens shot</h2>
+<h2>{this.state.stats.friendsShot} friends shot</h2>
+<h2>{this.state.stats.aliensInvaded} aliens invaded</h2>
+<h2>{this.state.stats.friendsRescued} friends rescued</h2>
+</div>
+                </div>
                 
-            <div className="stats">
-                {this.state.bullets} bullets left, {this.state.dogbots} dogbots, {this.state.botmasters} botmasters
+                <div className="stats">
+                    {this.state.bulletsLeft} bullets, {this.state.missilesLeft} missiles
             </div>
             </div>
         );

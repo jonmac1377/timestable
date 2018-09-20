@@ -22,13 +22,13 @@ class Page1 extends React.Component {
 	render() {
 		return (
 			<form className="Part1" onSubmit={(event)=>this.nextStep(event)}>
-				<div>
+				{/* <div>
 					<label htmlFor="numQuestions">Number of questions</label>
 					<input type="number" value={this.state.numQuestions}
 						onChange={(event) => this.setState({ numQuestions: event.target.value })} />
-				</div>
+				</div> */}
 				<div>
-					tables
+					<h1>Select tables</h1>
 					{this.state.tables.map(table => {
 						return (
 							<span key={table.name}>
@@ -42,7 +42,9 @@ class Page1 extends React.Component {
 						);
 					})}
 				</div>
-				<input type="submit" value="Next" />
+				<br/>
+				<br/>
+				<input className="btn btn-default" type="submit" value="Next" />
 			</form>);
 	}
 }

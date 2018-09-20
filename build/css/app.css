@@ -1,10 +1,25 @@
-
+body{
+    margin:0 4em;
+}
 .Part1 input[type=checkbox]{
    display:none;
 }
 
 .answer-button{
     margin:0.25em;
+    width:4em;
+    font-size:1.5em;
+}
+
+.scores{
+    position: absolute;
+    left:420px;
+    width:400px;
+}
+
+.poser{
+    font-size:2em;
+    font-weight:bold;
 }
 
 .table-select__label{
